@@ -6,14 +6,14 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import java.util.List;
 
 public class Buttons {
-    private static final InlineKeyboardButton ALL_MESSAGES_BUTTON = new InlineKeyboardButton("Всі");
-    private static final InlineKeyboardButton MY_MESSAGES_BUTTON = new InlineKeyboardButton("Мої");
+    private static final InlineKeyboardButton START_BUTTON = new InlineKeyboardButton("Start");
+    private static final InlineKeyboardButton HELP_BUTTON = new InlineKeyboardButton("Help");
 
     public static InlineKeyboardMarkup inlineMarkup() {
-        ALL_MESSAGES_BUTTON.setCallbackData("ALL_MESSAGES_BUTTON");
-        MY_MESSAGES_BUTTON.setCallbackData("MY_MESSAGES_BUTTON");
+        START_BUTTON.setCallbackData("/start");
+        HELP_BUTTON.setCallbackData("/help");
 
-        List<InlineKeyboardButton> rowInline = List.of(ALL_MESSAGES_BUTTON, MY_MESSAGES_BUTTON);
+        List<InlineKeyboardButton> rowInline = List.of(START_BUTTON, HELP_BUTTON);
         List<List<InlineKeyboardButton>> rowsInLine = List.of(rowInline);
 
         InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();

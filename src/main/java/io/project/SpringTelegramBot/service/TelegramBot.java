@@ -23,11 +23,8 @@ public class TelegramBot extends TelegramLongPollingBot implements BotCommands {
     @Autowired //внутрішньо використовує ін'єкцію сетера або конструктора
     private UserRepository userRepository;
     final BotConfig config;
-    private int messageCount = 0;
-
     public TelegramBot(BotConfig config) {
         this.config = config;
-
         try {
             this.execute(new SetMyCommands(LIST_OF_COMMANDS, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e){
@@ -47,74 +44,83 @@ public class TelegramBot extends TelegramLongPollingBot implements BotCommands {
 
     @Override
     public void onUpdateReceived(@NotNull Update update) {
-        if(update.hasMessage() && update.getMessage().hasText()){
-            String messageText = update.getMessage().getText();
-            long chatId = update.getMessage().getChatId();
-            long memberId = update.getMessage().getFrom().getId();
-            String memberName = update.getMessage().getFrom().getUserName();
+        long chatId = 0;
+        long userId = 0;
+        String userName = null;
+        String receivedMessage;
 
-            addOneMessageToDB(memberId);
+        if(update.hasMessage()) {
+            chatId = update.getMessage().getChatId();
+            userId = update.getMessage().getFrom().getId();
+            userName = update.getMessage().getFrom().getFirstName();
 
-            switch (messageText){
-                case "/start", "/start@CountingMessagesBot":
-                    startBot(chatId, update.getMessage().getFrom().getFirstName(), memberId);
-                    addUserBot(memberId, memberName);
-                    log.info(String.valueOf(userRepository.findById(String.valueOf(memberId))));
-                    break;
-                case "/help", "/help@CountingMessagesBot":
-                    sendHelpTest(chatId, HELP_TEXT);
-                    break;
-                default: log.info("Меседж не підтримується");
+            if (update.getMessage().hasText()) {
+                receivedMessage = update.getMessage().getText();
+                botAnswerUtils(receivedMessage, chatId, userName);
             }
+        } else if (update.hasCallbackQuery()) {
+            chatId = update.getCallbackQuery().getMessage().getChatId();
+            userId = update.getCallbackQuery().getFrom().getId();
+            userName = update.getCallbackQuery().getFrom().getFirstName();
+            receivedMessage = update.getCallbackQuery().getData();
+
+            botAnswerUtils(receivedMessage, chatId, userName);
+        }
+
+        if(chatId == Long.valueOf(config.getChatId())){
+            updateDB(userId, userName);
         }
     }
 
-    private void addOneMessageToDB(long memberId) {
-        log.info(String.valueOf(userRepository.findById(String.valueOf(memberId))));
-
-
-//        if(!userRepository.findById(String.valueOf(memberId)).isEmpty()){
-//            User user = new User();
-//            user.setMsg_numb(user.getMsg_numb() + 1);
-//            //userRepository.save(user);
-//            log.info("Запис користувача змінено: " + user);
-//        }
+    private void botAnswerUtils(String receivedMessage, long chatId, String userName) {
+        switch (receivedMessage){
+            case "/start", "/start@CountingMessagesBot":
+                startBot(chatId, userName);
+                break;
+            case "/help", "/help@CountingMessagesBot":
+                sendHelpTest(chatId, HELP_TEXT, userName);
+                break;
+            default: break;
+        }
     }
 
-    private void addUserBot(long memberId, String memberName) {
-        if(userRepository.findById(String.valueOf(memberId)).isEmpty()){
+    private void updateDB(long userId, String userName) {
+        if(userRepository.findById(userId).isEmpty()){
             User user = new User();
-            user.setId(memberId);
-            user.setName(memberName);
-            user.setMsg_numb(user.getMsg_numb() + 1);
+            user.setId(userId);
+            user.setName(userName);
+            user.setMsg_numb(1);
 
             userRepository.save(user);
-            log.info("Користувач доданий до БД: " + user);
-
+            log.info("Користувач доданий до БД: " + userRepository.findById(userId));
+        } else {
+            userRepository.updateMsgNumberByUserId(userId);
+            log.info("К-ть повідомлень +1: " + userRepository.findById(userId));
         }
     }
 
-    private void startBot(long chatId, String userName, long memberId) {
+    private void startBot(long chatId, String userName) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Привіт, " + chatId + "! Обери в меню ті повідомлення, які слід відобразити.");
+        message.setText("Привіт, " + userName + "! Я вдало запустився. Що робимо?");
         message.setReplyMarkup(Buttons.inlineMarkup());
 
         try {
             execute(message);
-            log.info("Надіслана відповідь користувачу " + userName);
+            log.info("Надіслана відповідь на /start користувачу " + userName);
         } catch (TelegramApiException e){
             log.error(e.getMessage());
         }
     }
 
-    private void sendHelpTest(long chatId, String textToSend){
+    private void sendHelpTest(long chatId, String textToSend, String userName){
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(textToSend);
 
         try {
             execute(message);
+            log.info("Надіслана відповідь на /help користувачу " + userName);
         } catch (TelegramApiException e){
             log.error(e.getMessage());
         }
